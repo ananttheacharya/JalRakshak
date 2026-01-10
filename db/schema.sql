@@ -1,0 +1,167 @@
+-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+--
+-- Host: localhost    Database: jalrakshak
+-- ------------------------------------------------------
+-- Server version	8.0.44
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `node_status`
+--
+
+DROP TABLE IF EXISTS `node_status`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `node_status` (
+  `node_id` varchar(255) NOT NULL,
+  `last_updated` datetime NOT NULL,
+  `cwqi` float NOT NULL,
+  `status` enum('GREEN','AMBER','RED') NOT NULL,
+  `reason` varchar(255) DEFAULT NULL,
+  `anomaly_detected` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`node_id`),
+  CONSTRAINT `node_status_ibfk_1` FOREIGN KEY (`node_id`) REFERENCES `nodes` (`node_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `nodes`
+--
+
+DROP TABLE IF EXISTS `nodes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `nodes` (
+  `node_id` varchar(255) NOT NULL,
+  `hierarchy_level` int NOT NULL,
+  `pump` varchar(255) NOT NULL,
+  `zone` varchar(255) DEFAULT NULL,
+  `colony` varchar(255) DEFAULT NULL,
+  `installed_on` date NOT NULL,
+  `latitude` decimal(9,6) DEFAULT NULL,
+  `longitude` decimal(9,6) DEFAULT NULL,
+  `status` enum('GREEN','AMBER','RED') DEFAULT 'GREEN',
+  `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`node_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sensor_readings`
+--
+
+DROP TABLE IF EXISTS `sensor_readings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sensor_readings` (
+  `reading_id` bigint NOT NULL AUTO_INCREMENT,
+  `node_id` varchar(255) NOT NULL,
+  `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `turbidity` float DEFAULT NULL,
+  `ph` float DEFAULT NULL,
+  `fluoride` float DEFAULT NULL,
+  `coliform` int DEFAULT NULL,
+  `conductivity` float DEFAULT NULL,
+  `temperature` float DEFAULT NULL,
+  `dissolved_oxygen` float DEFAULT NULL,
+  `pressure` float DEFAULT NULL,
+  `flow_rate` float DEFAULT NULL,
+  PRIMARY KEY (`reading_id`),
+  KEY `idx_node_time` (`node_id`,`timestamp`),
+  KEY `idx_time` (`timestamp`),
+  CONSTRAINT `sensor_readings_ibfk_1` FOREIGN KEY (`node_id`) REFERENCES `nodes` (`node_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=51173 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `staging_supply_raw`
+--
+
+DROP TABLE IF EXISTS `staging_supply_raw`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `staging_supply_raw` (
+  `pump` varchar(255) DEFAULT NULL,
+  `zone` varchar(255) DEFAULT NULL,
+  `colony` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `supply_clean`
+--
+
+DROP TABLE IF EXISTS `supply_clean`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supply_clean` (
+  `pump` varchar(255) DEFAULT NULL,
+  `zone` varchar(255) DEFAULT NULL,
+  `colony` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `supply_deduped`
+--
+
+DROP TABLE IF EXISTS `supply_deduped`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supply_deduped` (
+  `pump` varchar(255) DEFAULT NULL,
+  `zone` varchar(255) DEFAULT NULL,
+  `colony` varchar(255) DEFAULT NULL,
+  `row_id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`row_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=485 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `supply_zone_filled`
+--
+
+DROP TABLE IF EXISTS `supply_zone_filled`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supply_zone_filled` (
+  `pump` varchar(255) DEFAULT NULL,
+  `zone` varchar(255) DEFAULT NULL,
+  `colony` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `supply_zone_filled1`
+--
+
+DROP TABLE IF EXISTS `supply_zone_filled1`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supply_zone_filled1` (
+  `pump` varchar(255) DEFAULT NULL,
+  `zone` varchar(255) DEFAULT NULL,
+  `colony` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-01-11  3:24:26
