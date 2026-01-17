@@ -23,6 +23,7 @@ def get_connection():
 # -------- FETCH LATEST SENSOR READING PER NODE --------
 LATEST_READING_QUERY = """
 SELECT sr.node_id,
+       n.hierarchy_level,
        sr.turbidity,
        sr.ph,
        sr.fluoride,
@@ -32,6 +33,7 @@ SELECT sr.node_id,
        sr.dissolved_oxygen,
        sr.pressure
 FROM sensor_readings sr
+JOIN nodes n ON sr.node_id = n.node_id
 JOIN (
     SELECT node_id, MAX(timestamp) AS latest_time
     FROM sensor_readings
@@ -62,6 +64,34 @@ ON DUPLICATE KEY UPDATE
 """
 
 
+# -------- ALERT QUERIES --------
+GET_ACTIVE_ALERT_QUERY = """
+SELECT alert_id, alert_level
+FROM alerts
+WHERE node_id = %s AND is_active = 1
+LIMIT 1
+"""
+
+INSERT_ALERT_QUERY = """
+INSERT INTO alerts (
+    node_id, hierarchy_level, alert_level, cwqi_value,
+    reason, detected_at, is_active
+) VALUES (%s, %s, %s, %s, %s, %s, 1)
+"""
+
+RESOLVE_ALERT_QUERY = """
+UPDATE alerts
+SET is_active = 0, resolved_at = %s
+WHERE alert_id = %s
+"""
+
+RESOLVE_ALL_ALERTS_QUERY = """
+UPDATE alerts
+SET is_active = 0, resolved_at = %s
+WHERE node_id = %s AND is_active = 1
+"""
+
+
 # -------- CONTINUOUS ANALYZER LOOP --------
 def run_cwqi_analyzer(interval_seconds=5):
     print("[ANALYZER] CWQI analyzer started")
@@ -80,6 +110,7 @@ def run_cwqi_analyzer(interval_seconds=5):
 
             for row in readings:
                 node_id = row["node_id"]
+                hierarchy_level = row["hierarchy_level"]
 
                 reading = {
                     "turbidity": row["turbidity"],
@@ -106,6 +137,38 @@ def run_cwqi_analyzer(interval_seconds=5):
                         anomaly
                     )
                 )
+
+                # -------- ALERT LOGIC --------
+                # Check for existing active alerts
+                cursor.execute(GET_ACTIVE_ALERT_QUERY, (node_id,))
+                active_alert = cursor.fetchone()
+
+                if status == "GREEN":
+                    # Condition is normal, resolve any active alerts
+                    if active_alert:
+                        print(f"[ALERT] Resolving alert for {node_id}")
+                        cursor.execute(RESOLVE_ALL_ALERTS_QUERY, (now, node_id))
+                
+                elif status in ("AMBER", "RED"):
+                    # Abnormal condition
+                    if not active_alert:
+                        # No active alert, create new one
+                        print(f"[ALERT] Raising {status} alert for {node_id}")
+                        cursor.execute(INSERT_ALERT_QUERY, (
+                            node_id, hierarchy_level, status, cwqi, reason, now
+                        ))
+                    else:
+                        # Active alert exists. Check if severity changed.
+                        current_alert_level = active_alert['alert_level']
+                        if current_alert_level != status:
+                            # Severity changed (e.g. AMBER -> RED or RED -> AMBER)
+                            # Resolve old, create new
+                            print(f"[ALERT] Updating alert level {current_alert_level} -> {status} for {node_id}")
+                            cursor.execute(RESOLVE_ALERT_QUERY, (now, active_alert['alert_id']))
+                            cursor.execute(INSERT_ALERT_QUERY, (
+                                node_id, hierarchy_level, status, cwqi, reason, now
+                            ))
+                        # else: same severity, do nothing
 
             conn.commit()
             cursor.close()
