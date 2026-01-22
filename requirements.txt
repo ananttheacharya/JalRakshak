@@ -1,0 +1,5 @@
+flask
+flask-socketio
+eventlet
+mysql-connector-python
+geopy
