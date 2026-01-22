@@ -171,7 +171,9 @@ def run_cwqi_analyzer(interval_seconds=5):
                             ))
                         # else: same severity, do nothing
 
-            conn.commit()
+
+                conn.commit()
+            
             cursor.close()
             conn.close()
 

@@ -1,22 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JalRakshak Dashboard</title>
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
     <!-- Vis.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js"
+        integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css"
+        integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
     <div class="dashboard-container">
         <!-- Header -->
@@ -24,8 +41,14 @@
             <div class="logo">
                 <h1>JalRakshak <span class="status-live">LIVE</span></h1>
             </div>
-            <div class="header-info">
-                <span id="current-time">--:--:--</span>
+            <div class="header-controls">
+                <label class="switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider round"></span>
+                </label>
+                <div class="header-info">
+                    <span id="current-time">--:--:--</span>
+                </div>
             </div>
         </header>
 
@@ -54,16 +77,7 @@
                 <div class="card-header">
                     <h2>Geospatial View</h2>
                 </div>
-                <div class="map-placeholder">
-                    <div class="map-content">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                        <p>Google Maps Integration</p>
-                        <span class="details">Live Tracking Enabled</span>
-                    </div>
-                </div>
+                <div id="map"></div>
             </div>
         </div>
 
@@ -72,7 +86,6 @@
             <div class="card alerts-card">
                 <div class="card-header">
                     <h2>Alerts Log</h2>
-                    <span class="live-indicator">Updating in <span id="update-timer">5</span>s</span>
                 </div>
                 <div class="alerts-table-header">
                     <div class="col">Time</div>
@@ -83,7 +96,6 @@
                     <div class="col">Message</div>
                 </div>
                 <div id="alerts-log" class="alerts-log">
-                    <!-- Alerts will be injected here -->
                     <div class="alert-item placeholder">Waiting for alerts...</div>
                 </div>
             </div>
@@ -91,6 +103,8 @@
     </div>
 
     <script>
+        const socket = io();
+
         // --- Mesh Visualization Logic ---
         var nodes = new vis.DataSet([]);
         var edges = new vis.DataSet([]);
@@ -102,38 +116,58 @@
             var options = {
                 nodes: {
                     shape: 'dot',
-                    size: 20,
-                    font: { size: 14, color: '#ffffff' },
-                    borderWidth: 2
+                    font: { size: 12, color: '#ffffff' },
+                    borderWidth: 2,
+                    shadow: true
                 },
                 edges: {
-                    width: 1,
-                    color: { color: 'rgba(255, 255, 255, 0.2)', highlight: '#00ADF6' },
+                    width: 2,
+                    color: { color: 'rgba(255, 255, 255, 0.6)', highlight: '#00ADF6' },
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
                     smooth: { type: 'continuous' }
                 },
                 physics: {
-                    stabilization: false,
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 1000,
+                        updateInterval: 25,
+                        onlyDynamicEdges: false,
+                        fit: true
+                    },
                     barnesHut: {
-                        gravitationalConstant: -8000,
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.3,
+                        springLength: 95,
                         springConstant: 0.04,
-                        springLength: 95
+                        damping: 0.09,
+                        avoidOverlap: 0.1
                     },
                     adaptiveTimestep: true
                 },
                 interaction: {
                     tooltipDelay: 200,
-                    hideEdgesOnDrag: true
+                    hover: true,
+                    navigationButtons: true,
+                    keyboard: true
+                },
+                groups: {
+                    1: { color: { background: '#2980b9' }, size: 30 },
+                    2: { color: { background: '#16a085' }, size: 20 },
+                    3: { color: { background: '#7f8c8d' }, size: 12 }
                 }
             };
             network = new vis.Network(container, data, options);
-            
-            // Loading bar logic (simulated for now as we load data dynamically)
-            network.on("stabilizationProgress", function(params) {
+
+            network.on("stabilizationProgress", function (params) {
                 var widthFactor = params.iterations / params.total;
                 document.getElementById('bar').style.width = Math.round(widthFactor * 100) + '%';
                 document.getElementById('text').innerHTML = Math.round(widthFactor * 100) + '%';
+                document.getElementById('loadingBar').style.display = 'block';
+                document.getElementById('loadingBar').style.opacity = 1;
             });
-            network.once("stabilizationIterationsDone", function() {
+
+            network.once("stabilizationIterationsDone", function () {
                 document.getElementById('text').innerHTML = '100%';
                 document.getElementById('bar').style.width = '100%';
                 document.getElementById('loadingBar').style.opacity = 0;
@@ -141,125 +175,208 @@
                     document.getElementById('loadingBar').style.display = 'none';
                 }, 500);
             });
+
+            // Failsafe: Hide loading bar after 3 seconds if it gets stuck
+            setTimeout(() => {
+                document.getElementById('loadingBar').style.display = 'none';
+            }, 3000);
         }
 
-        async function updateMesh() {
-            try {
-                const response = await fetch('/api/nodes');
-                const data = await response.json();
-                
-                // Process nodes
-                const nodeUpdates = [];
-                const edgeUpdates = []; // We aren't getting edges from API yet, inferring or leaving empty?
-                // The original mesh.html likely had hardcoded edges or inferred them. 
-                // For now, let's just show nodes. If hierarchy is available, we can link them.
-                
-                let greenCount = 0;
-                
-                data.forEach(node => {
-                    let color = '#2ecc71'; // Green
+
+        // --- Map Logic ---
+        var map = null;
+        var markers = {};
+
+        function initMap() {
+            // Jaipur coordinates
+            map = L.map('map').setView([26.9124, 75.7873], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+
+        function updateMap(data) {
+            data.forEach(node => {
+                if (node.latitude && node.longitude) {
+                    let color = '#2ecc71';
                     if (node.status === 'AMBER') color = '#f1c40f';
                     if (node.status === 'RED') color = '#e74c3c';
-                    if (node.status === 'GREEN') greenCount++;
-                    
-                    // Simple hierarchy linking (simulated for visual connectivity if desired, or strictly based on real data)
-                    // For now, just nodes.
-                    
-                    nodeUpdates.push({
-                        id: node.node_id,
-                        label: node.node_id.replace('L' + node.hierarchy_level + '_', ''), // Simplify label
-                        title: `<b>${node.node_id}</b><br>CWQI: ${node.cwqi}<br>Status: ${node.status}`,
-                        color: color,
-                        group: node.hierarchy_level
+
+                    // Add pulsing glow effect class
+                    const glowClass = `marker-glow-${node.status.toLowerCase()}`;
+
+                    const markerHtml = `
+                        <div class="${glowClass}" style="
+                            background-color: ${color};
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 50%;
+                            border: 2px solid white;
+                            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+                        "></div>
+                    `;
+
+                    const icon = L.divIcon({
+                        html: markerHtml,
+                        className: 'custom-div-icon',
+                        iconSize: [18, 18],
+                        iconAnchor: [9, 9]
                     });
-                });
-                
-                nodes.update(nodeUpdates);
-                document.getElementById('node-count').innerText = data.length + ' Nodes';
-                document.getElementById('active-count').innerText = greenCount + ' Active';
-                
-            } catch (err) {
-                console.error("Failed to update mesh:", err);
-            }
-        }
 
-        // --- Alerts Logic ---
-        async function updateAlerts() {
-            try {
-                const response = await fetch('/api/alerts');
-                const data = await response.json();
-                
-                const logContainer = document.getElementById('alerts-log');
-                logContainer.innerHTML = '';
-                
-                // Combine and sort (active first, then resolved)
-                // The API already separates them.
-                
-                // Render Active
-                data.active.forEach(alert => {
-                    const el = document.createElement('div');
-                    el.className = 'alert-item alert-active';
-                    el.innerHTML = `
-                        <div class="col time">${new Date(alert.detected_at).toLocaleTimeString()}</div>
-                        <div class="col node">${alert.node_id}</div>
-                        <div class="col level"><span class="badge ${alert.alert_level.toLowerCase()}">${alert.alert_level}</span></div>
-                        <div class="col cwqi">${alert.cwqi_value ? alert.cwqi_value.toFixed(1) : 'N/A'}</div>
-                        <div class="col status">ACTIVE</div>
-                        <div class="col msg">${alert.reason || 'Anomaly detected'}</div>
-                    `;
-                    logContainer.appendChild(el);
-                });
-                
-                // Render Resolved
-                data.resolved.forEach(alert => {
-                    const el = document.createElement('div');
-                    el.className = 'alert-item alert-resolved';
-                    el.innerHTML = `
-                        <div class="col time">${new Date(alert.resolved_at).toLocaleTimeString()}</div>
-                        <div class="col node">${alert.node_id}</div>
-                        <div class="col level"><span class="badge resolved">RESOLVED</span></div>
-                        <div class="col cwqi">${alert.cwqi_value ? alert.cwqi_value.toFixed(1) : 'N/A'}</div>
-                        <div class="col status">CLEARED</div>
-                        <div class="col msg">Issue resolved</div>
-                    `;
-                    logContainer.appendChild(el);
-                });
-                
-                if (data.active.length === 0 && data.resolved.length === 0) {
-                     logContainer.innerHTML = '<div class="alert-item placeholder">No recent alerts</div>';
+                    if (markers[node.node_id]) {
+                        markers[node.node_id].setIcon(icon);
+                        // Animate movement if needed, or just set
+                        markers[node.node_id].setLatLng([node.latitude, node.longitude]);
+                    } else {
+                        const marker = L.marker([node.latitude, node.longitude], { icon: icon })
+                            .bindPopup(`<b>${node.node_id}</b><br>CWQI: ${node.cwqi}<br>Status: ${node.status}`)
+                            .addTo(map);
+                        markers[node.node_id] = marker;
+                    }
                 }
+            });
+        }
 
-            } catch (err) {
-                console.error("Failed to update alerts:", err);
+        function updateMeshNodes(data) {
+            // Process nodes
+            const nodeUpdates = [];
+            const edgeUpdates = [];
+            const l1Nodes = {};
+            const l2Nodes = {};
+            let greenCount = 0;
+
+            data.forEach(node => {
+                let color = '#2ecc71'; // Green
+                if (node.status === 'AMBER') color = '#f1c40f';
+                if (node.status === 'RED') color = '#e74c3c';
+                if (node.status === 'GREEN') greenCount++;
+
+                nodeUpdates.push({
+                    id: node.node_id,
+                    label: node.node_id.replace('L' + node.hierarchy_level + '_', ''),
+                    title: `<b>${node.node_id}</b><br>CWQI: ${node.cwqi}<br>Status: ${node.status}`,
+                    color: color,
+                    group: node.hierarchy_level
+                });
+
+                if (node.hierarchy_level === 1) {
+                    l1Nodes[node.pump] = node.node_id;
+                } else if (node.hierarchy_level === 2) {
+                    l2Nodes[`${node.pump}_${node.zone}`] = node.node_id;
+                }
+            });
+
+            data.forEach(node => {
+                if (node.hierarchy_level === 2) {
+                    const parentId = l1Nodes[node.pump];
+                    if (parentId && parentId !== node.node_id) {
+                        edgeUpdates.push({
+                            from: parentId,
+                            to: node.node_id,
+                            id: `${parentId}_${node.node_id}`
+                        });
+                    }
+                } else if (node.hierarchy_level === 3) {
+                    const parentKey = `${node.pump}_${node.zone}`;
+                    const parentId = l2Nodes[parentKey];
+                    if (parentId && parentId !== node.node_id) {
+                        edgeUpdates.push({
+                            from: parentId,
+                            to: node.node_id,
+                            id: `${parentId}_${node.node_id}`
+                        });
+                    }
+                }
+            });
+
+            nodes.update(nodeUpdates);
+            edges.update(edgeUpdates);
+
+            document.getElementById('node-count').innerText = data.length + ' Nodes';
+            document.getElementById('active-count').innerText = greenCount + ' Active';
+
+            updateMap(data);
+        }
+
+        function renderAlerts(data) {
+            const logContainer = document.getElementById('alerts-log');
+            logContainer.innerHTML = '';
+
+            // Combine active and resolved
+            const all = [...data.active, ...data.resolved];
+
+            if (all.length === 0) {
+                logContainer.innerHTML = '<div class="alert-item placeholder">No recent alerts</div>';
+                return;
+            }
+
+            all.forEach(alert => {
+                const isResolved = !alert.is_active;
+                const dateVal = isResolved ? alert.resolved_at : alert.detected_at;
+
+                const el = document.createElement('div');
+                el.className = `alert-item ${isResolved ? 'alert-resolved' : 'alert-active'}`;
+                el.onclick = () => zoomToNode(alert.node_id);
+                el.style.cursor = 'pointer';
+
+                el.innerHTML = `
+                    <div class="col time">${new Date(dateVal).toLocaleTimeString()}</div>
+                    <div class="col node" title="${alert.node_id}">${alert.node_id}</div>
+                    <div class="col level"><span class="badge ${alert.alert_level.toLowerCase()} ${isResolved ? 'resolved' : ''}">${isResolved ? 'RESOLVED' : alert.alert_level}</span></div>
+                    <div class="col cwqi">${alert.cwqi_value ? alert.cwqi_value.toFixed(1) : 'N/A'}</div>
+                    <div class="col status">${isResolved ? 'CLEARED' : 'ACTIVE'}</div>
+                    <div class="col msg">${alert.reason || 'Anomaly detected'}</div>
+                `;
+                logContainer.appendChild(el);
+            });
+        }
+
+        function zoomToNode(nodeId) {
+            if (markers[nodeId]) {
+                const m = markers[nodeId];
+                map.setView(m.getLatLng(), 15);
+                m.openPopup();
             }
         }
+
+        // --- Socket Events ---
+        socket.on('update_nodes', function (data) {
+            updateMeshNodes(data);
+        });
+
+        socket.on('update_alerts', function (data) {
+            renderAlerts(data);
+        });
 
         // --- Init ---
-        window.onload = function() {
+        window.onload = function () {
             initMesh();
-            updateMesh();
-            updateAlerts();
-            
-            // Live Updates
-            setInterval(updateMesh, 10000); // Mesh every 10s
-            
-            // Alerts every 5s with timer
-            setInterval(() => {
-                updateAlerts();
-                document.getElementById('update-timer').innerText = '5';
-            }, 5000);
-            
-            setInterval(() => {
-                let timer = document.getElementById('update-timer');
-                let val = parseInt(timer.innerText);
-                if (val > 0) timer.innerText = val - 1;
-            }, 1000);
+            initMap();
 
             // Clock
             setInterval(() => {
                 document.getElementById('current-time').innerText = new Date().toLocaleTimeString();
             }, 1000);
+
+            // Dark Mode Logic
+            const toggle = document.getElementById('darkModeToggle');
+            // Check previous state
+            if (localStorage.getItem('theme') === 'dark') {
+                document.body.classList.add('dark-mode');
+                toggle.checked = true;
+            }
+
+            toggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('theme', 'light');
+                }
+            });
         };
     </script>
 </body>
+
 </html>

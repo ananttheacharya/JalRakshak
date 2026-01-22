@@ -1,10 +1,17 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, render_template, jsonify
+from flask_socketio import SocketIO, emit
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
 import json
+import time
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'jalrakshak_secret'
+socketio = SocketIO(app, async_mode='eventlet')
 
 # MySQL CONFIG
 DB_CONFIG = {
@@ -17,16 +24,10 @@ DB_CONFIG = {
 def get_connection():
     return mysql.connector.connect(**DB_CONFIG)
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/api/nodes")
-def get_nodes():
+def fetch_nodes():
     try:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        # Fetch latest status for all nodes
         query = """
         SELECT n.node_id, n.hierarchy_level, n.pump, n.zone, n.colony, n.latitude, n.longitude,
                ns.cwqi, ns.status, ns.reason, ns.last_updated
@@ -36,26 +37,26 @@ def get_nodes():
         cursor.execute(query)
         nodes = cursor.fetchall()
         
-        # Format for vis.js or frontend usage
-        # We need to map this to the format expected by the visualizer
-        # For now sending raw data, frontend will parse
-        return jsonify(nodes)
-        
+        # Convert datetime objects to string and decimals to float
+        for node in nodes:
+            if node['last_updated']:
+                node['last_updated'] = node['last_updated'].isoformat()
+            if node['latitude']: node['latitude'] = float(node['latitude'])
+            if node['longitude']: node['longitude'] = float(node['longitude'])
+            if node['cwqi']: node['cwqi'] = float(node['cwqi'])
+                
+        cursor.close()
+        conn.close()
+        return nodes
     except Error as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if 'conn' in locals() and conn.is_connected():
-            cursor.close()
-            conn.close()
+        print(f"Error fetching nodes: {e}")
+        return []
 
-@app.route("/api/alerts")
-def get_alerts():
+def fetch_alerts():
     try:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        # Fetch active alerts first, then recent resolved ones
-        # Use a simpler query for the log
-        # Fetch active alerts
+        
         query_active = """
         SELECT alert_id, node_id, hierarchy_level, alert_level, cwqi_value, reason, detected_at, is_active
         FROM alerts
@@ -65,7 +66,6 @@ def get_alerts():
         cursor.execute(query_active)
         active_alerts = cursor.fetchall()
         
-        # Fetch recently resolved alerts (last 10)
         query_resolved = """
         SELECT alert_id, node_id, hierarchy_level, alert_level, cwqi_value, reason, detected_at, resolved_at, is_active
         FROM alerts
@@ -76,17 +76,59 @@ def get_alerts():
         cursor.execute(query_resolved)
         resolved_alerts = cursor.fetchall()
         
-        return jsonify({
-            "active": active_alerts,
-            "resolved": resolved_alerts
-        })
+        cursor.close()
+        conn.close()
         
+        # Convert datetime objects and decimals
+        for a in active_alerts:
+            if a['detected_at']: a['detected_at'] = a['detected_at'].isoformat()
+            if a['cwqi_value']: a['cwqi_value'] = float(a['cwqi_value'])
+        
+        for a in resolved_alerts:
+            if a['detected_at']: a['detected_at'] = a['detected_at'].isoformat()
+            if a['resolved_at']: a['resolved_at'] = a['resolved_at'].isoformat()
+            if a['cwqi_value']: a['cwqi_value'] = float(a['cwqi_value'])
+            
+        return {"active": active_alerts, "resolved": resolved_alerts}
     except Error as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if 'conn' in locals() and conn.is_connected():
-            cursor.close()
-            conn.close()
+        print(f"Error fetching alerts: {e}")
+        return {"active": [], "resolved": []}
+
+def background_thread():
+    """Background thread to push updates."""
+    print("Background thread started")
+    while True:
+        # Rate limit updates
+        socketio.sleep(2)
+        
+        # Fetch data
+        nodes = fetch_nodes()
+        alerts = fetch_alerts()
+        
+        # Broadcast updates
+        socketio.emit('update_nodes', nodes)
+        socketio.emit('update_alerts', alerts)
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+# Keep API endpoints for initial load if needed
+@app.route("/api/nodes")
+def get_nodes():
+    return jsonify(fetch_nodes())
+
+@app.route("/api/alerts")
+def get_alerts():
+    return jsonify(fetch_alerts())
+
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+    emit('update_nodes', fetch_nodes())
+    emit('update_alerts', fetch_alerts())
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    # Start background task
+    socketio.start_background_task(background_thread)
+    socketio.run(app, debug=False, host="0.0.0.0", port=5000)
