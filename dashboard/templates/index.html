@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JalRakshak Dashboard</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Vis.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="logo">
+                <h1>JalRakshak <span class="status-live">LIVE</span></h1>
+            </div>
+            <div class="header-info">
+                <span id="current-time">--:--:--</span>
+            </div>
+        </header>
+
+        <!-- Top Section: Metric & Map -->
+        <div class="top-section">
+            <div class="card mesh-card">
+                <div class="card-header">
+                    <h2>Live Mesh Network</h2>
+                    <div class="mesh-stats">
+                        <span id="node-count">0 Nodes</span>
+                        <span id="active-count" class="status-green">0 Active</span>
+                    </div>
+                </div>
+                <div id="mynetwork"></div>
+                <div id="loadingBar">
+                    <div class="outerBorder">
+                        <div id="text">0%</div>
+                        <div id="border">
+                            <div id="bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card map-card">
+                <div class="card-header">
+                    <h2>Geospatial View</h2>
+                </div>
+                <div class="map-placeholder">
+                    <div class="map-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <p>Google Maps Integration</p>
+                        <span class="details">Live Tracking Enabled</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Section: Alerts -->
+        <div class="bottom-section">
+            <div class="card alerts-card">
+                <div class="card-header">
+                    <h2>Alerts Log</h2>
+                    <span class="live-indicator">Updating in <span id="update-timer">5</span>s</span>
+                </div>
+                <div class="alerts-table-header">
+                    <div class="col">Time</div>
+                    <div class="col">Node</div>
+                    <div class="col">Level</div>
+                    <div class="col">CWQI</div>
+                    <div class="col">Status</div>
+                    <div class="col">Message</div>
+                </div>
+                <div id="alerts-log" class="alerts-log">
+                    <!-- Alerts will be injected here -->
+                    <div class="alert-item placeholder">Waiting for alerts...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Mesh Visualization Logic ---
+        var nodes = new vis.DataSet([]);
+        var edges = new vis.DataSet([]);
+        var network = null;
+
+        function initMesh() {
+            var container = document.getElementById('mynetwork');
+            var data = { nodes: nodes, edges: edges };
+            var options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 20,
+                    font: { size: 14, color: '#ffffff' },
+                    borderWidth: 2
+                },
+                edges: {
+                    width: 1,
+                    color: { color: 'rgba(255, 255, 255, 0.2)', highlight: '#00ADF6' },
+                    smooth: { type: 'continuous' }
+                },
+                physics: {
+                    stabilization: false,
+                    barnesHut: {
+                        gravitationalConstant: -8000,
+                        springConstant: 0.04,
+                        springLength: 95
+                    },
+                    adaptiveTimestep: true
+                },
+                interaction: {
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true
+                }
+            };
+            network = new vis.Network(container, data, options);
+            
+            // Loading bar logic (simulated for now as we load data dynamically)
+            network.on("stabilizationProgress", function(params) {
+                var widthFactor = params.iterations / params.total;
+                document.getElementById('bar').style.width = Math.round(widthFactor * 100) + '%';
+                document.getElementById('text').innerHTML = Math.round(widthFactor * 100) + '%';
+            });
+            network.once("stabilizationIterationsDone", function() {
+                document.getElementById('text').innerHTML = '100%';
+                document.getElementById('bar').style.width = '100%';
+                document.getElementById('loadingBar').style.opacity = 0;
+                setTimeout(function () {
+                    document.getElementById('loadingBar').style.display = 'none';
+                }, 500);
+            });
+        }
+
+        async function updateMesh() {
+            try {
+                const response = await fetch('/api/nodes');
+                const data = await response.json();
+                
+                // Process nodes
+                const nodeUpdates = [];
+                const edgeUpdates = []; // We aren't getting edges from API yet, inferring or leaving empty?
+                // The original mesh.html likely had hardcoded edges or inferred them. 
+                // For now, let's just show nodes. If hierarchy is available, we can link them.
+                
+                let greenCount = 0;
+                
+                data.forEach(node => {
+                    let color = '#2ecc71'; // Green
+                    if (node.status === 'AMBER') color = '#f1c40f';
+                    if (node.status === 'RED') color = '#e74c3c';
+                    if (node.status === 'GREEN') greenCount++;
+                    
+                    // Simple hierarchy linking (simulated for visual connectivity if desired, or strictly based on real data)
+                    // For now, just nodes.
+                    
+                    nodeUpdates.push({
+                        id: node.node_id,
+                        label: node.node_id.replace('L' + node.hierarchy_level + '_', ''), // Simplify label
+                        title: `<b>${node.node_id}</b><br>CWQI: ${node.cwqi}<br>Status: ${node.status}`,
+                        color: color,
+                        group: node.hierarchy_level
+                    });
+                });
+                
+                nodes.update(nodeUpdates);
+                document.getElementById('node-count').innerText = data.length + ' Nodes';
+                document.getElementById('active-count').innerText = greenCount + ' Active';
+                
+            } catch (err) {
+                console.error("Failed to update mesh:", err);
+            }
+        }
+
+        // --- Alerts Logic ---
+        async function updateAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const data = await response.json();
+                
+                const logContainer = document.getElementById('alerts-log');
+                logContainer.innerHTML = '';
+                
+                // Combine and sort (active first, then resolved)
+                // The API already separates them.
+                
+                // Render Active
+                data.active.forEach(alert => {
+                    const el = document.createElement('div');
+                    el.className = 'alert-item alert-active';
+                    el.innerHTML = `
+                        <div class="col time">${new Date(alert.detected_at).toLocaleTimeString()}</div>
+                        <div class="col node">${alert.node_id}</div>
+                        <div class="col level"><span class="badge ${alert.alert_level.toLowerCase()}">${alert.alert_level}</span></div>
+                        <div class="col cwqi">${alert.cwqi_value ? alert.cwqi_value.toFixed(1) : 'N/A'}</div>
+                        <div class="col status">ACTIVE</div>
+                        <div class="col msg">${alert.reason || 'Anomaly detected'}</div>
+                    `;
+                    logContainer.appendChild(el);
+                });
+                
+                // Render Resolved
+                data.resolved.forEach(alert => {
+                    const el = document.createElement('div');
+                    el.className = 'alert-item alert-resolved';
+                    el.innerHTML = `
+                        <div class="col time">${new Date(alert.resolved_at).toLocaleTimeString()}</div>
+                        <div class="col node">${alert.node_id}</div>
+                        <div class="col level"><span class="badge resolved">RESOLVED</span></div>
+                        <div class="col cwqi">${alert.cwqi_value ? alert.cwqi_value.toFixed(1) : 'N/A'}</div>
+                        <div class="col status">CLEARED</div>
+                        <div class="col msg">Issue resolved</div>
+                    `;
+                    logContainer.appendChild(el);
+                });
+                
+                if (data.active.length === 0 && data.resolved.length === 0) {
+                     logContainer.innerHTML = '<div class="alert-item placeholder">No recent alerts</div>';
+                }
+
+            } catch (err) {
+                console.error("Failed to update alerts:", err);
+            }
+        }
+
+        // --- Init ---
+        window.onload = function() {
+            initMesh();
+            updateMesh();
+            updateAlerts();
+            
+            // Live Updates
+            setInterval(updateMesh, 10000); // Mesh every 10s
+            
+            // Alerts every 5s with timer
+            setInterval(() => {
+                updateAlerts();
+                document.getElementById('update-timer').innerText = '5';
+            }, 5000);
+            
+            setInterval(() => {
+                let timer = document.getElementById('update-timer');
+                let val = parseInt(timer.innerText);
+                if (val > 0) timer.innerText = val - 1;
+            }, 1000);
+
+            // Clock
+            setInterval(() => {
+                document.getElementById('current-time').innerText = new Date().toLocaleTimeString();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -7,14 +7,13 @@ from cwqi import compute_cwqi
 
 
 # -------- MySQL CONFIG --------
-# use your own user and password for the database read, also it is suggested to create a seperate user 
-# on LInux  Platforms to avoid inadvertant errors. 
 DB_CONFIG = {
     "host": "localhost",
-    "user": "",
-    "password": "",
+    "user": "jalrakshak",
+    "password": "jalrakshak123",
     "database": "jalrakshak"
 }
+
 
 
 # -------- DB CONNECTION --------
