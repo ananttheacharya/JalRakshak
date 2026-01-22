@@ -8,8 +8,8 @@ from mysql.connector import Error
 # -------- MySQL CONFIG --------
 DB_CONFIG = {
     "host": "localhost",
-    "user": "root",
-    "password": "5568",
+    "user": "jalrakshak",
+    "password": "jalrakshak123",
     "database": "jalrakshak"
 }
 
@@ -93,6 +93,7 @@ def inject_anomaly(reading):
 # -------- MAIN SIMULATION LOOP --------
 
 def run_simulator():
+    conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -141,7 +142,7 @@ def run_simulator():
         print("[ERROR]", e)
 
     finally:
-        if conn.is_connected():
+        if conn and conn.is_connected():
             cursor.close()
             conn.close()
 
