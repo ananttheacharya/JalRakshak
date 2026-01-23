@@ -5,12 +5,17 @@ import mysql.connector
 from mysql.connector import Error
 from collections import defaultdict
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # -------- MySQL CONFIG --------
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "jalrakshak",
-    "password": "jalrakshak123",
-    "database": "jalrakshak"
+    "host": os.getenv("DB_HOST", "127.0.0.1"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD", "5568"),
+    "database": os.getenv("DB_NAME", "jalrakshak")
 }
 
 # -------- GLOBALS --------
@@ -20,7 +25,15 @@ CONTAMINATION_QUEUE = []  # List of {node_id, trigger_time, severity}
 
 # -------- CONNECT --------
 def get_connection():
-    return mysql.connector.connect(**DB_CONFIG)
+    attempts = 0
+    while attempts < 3:
+        try:
+            return mysql.connector.connect(**DB_CONFIG)
+        except Error as e:
+            attempts += 1
+            print(f"[DB] Connection failed (Attempt {attempts}/3): {e}")
+            time.sleep(1)
+    raise Error("Failed to connect to database after 3 attempts")
 
 # -------- BUILD HIERARCHY --------
 def build_hierarchy_map():

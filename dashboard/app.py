@@ -9,20 +9,34 @@ from datetime import datetime
 import json
 import time
 
+import os
+from dotenv import load_dotenv
+
+# Load env vars
+load_dotenv()
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'jalrakshak_secret'
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 socketio = SocketIO(app, async_mode='eventlet')
 
 # MySQL CONFIG
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "jalrakshak",
-    "password": "jalrakshak123",
-    "database": "jalrakshak"
+    "host": os.getenv("DB_HOST", "127.0.0.1"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD", "5568"),
+    "database": os.getenv("DB_NAME", "jalrakshak")
 }
 
 def get_connection():
-    return mysql.connector.connect(**DB_CONFIG)
+    attempts = 0
+    while attempts < 3:
+        try:
+            return mysql.connector.connect(**DB_CONFIG)
+        except Error as e:
+            attempts += 1
+            print(f"[DB] Connection failed (Attempt {attempts}/3): {e}")
+            time.sleep(1)
+    raise Error("Failed to connect to database after 3 attempts")
 
 def fetch_nodes():
     try:

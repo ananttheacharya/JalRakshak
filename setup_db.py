@@ -16,8 +16,9 @@ def setup_database():
     root_pass = input("Enter MySQL root password: ")
 
     try:
+    try:
         conn = mysql.connector.connect(
-            host="localhost",
+            host="127.0.0.1",
             user=root_user,
             password=root_pass
         )
@@ -32,6 +33,11 @@ def setup_database():
         # Note: This syntax works for MySQL 8.x
         cursor.execute(f"CREATE USER IF NOT EXISTS '{APP_USER}'@'localhost' IDENTIFIED BY '{APP_PASS}'")
         cursor.execute(f"GRANT ALL PRIVILEGES ON {DB_NAME}.* TO '{APP_USER}'@'localhost'")
+
+        # Also create for 127.0.0.1 to avoid issues if connected via TCP loopback explicitly
+        cursor.execute(f"CREATE USER IF NOT EXISTS '{APP_USER}'@'127.0.0.1' IDENTIFIED BY '{APP_PASS}'")
+        cursor.execute(f"GRANT ALL PRIVILEGES ON {DB_NAME}.* TO '{APP_USER}'@'127.0.0.1'")
+        
         cursor.execute("FLUSH PRIVILEGES")
         
         print("Database and User verified.")
@@ -41,7 +47,7 @@ def setup_database():
         # 3. Import Schema and Seed using the new user
         # Re-connect as the app user
         conn = mysql.connector.connect(
-            host="localhost",
+            host="127.0.0.1",
             user=APP_USER,
             password=APP_PASS,
             database=DB_NAME,

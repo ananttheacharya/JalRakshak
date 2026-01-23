@@ -1,14 +1,19 @@
 import mysql.connector
 from mysql.connector import Error
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "jalrakshak",
-    "password": "jalrakshak123",
-    "database": "jalrakshak"
+    "host": os.getenv("DB_HOST", "127.0.0.1"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD", "5568"),
+    "database": os.getenv("DB_NAME", "jalrakshak")
 }
 
 def check_alerts_table():
+    conn = None
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()

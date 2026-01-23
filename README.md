@@ -1,50 +1,74 @@
-# JalRakshak
+# JalRakshak MVP
 
-An IoT sensor simulation that monitors and analyzes Water Quality Parameters in city water pipelines and sends alerts to respective pumping stations and administrative zones in case of contamination and leakage.
+JalRakshak is a Smart Water Management System designed to simulate, monitor, and analyze water quality parameters (like CWQI) across a city's pipeline network.
 
-## Project Structure
-- `dashboard/`: Flask application for real-time visualization.
-- `db/`: Database schema and seed data.
-- `sensor_simulator.py`: Simulates IoT sensor data generation.
-- `cwqi_analyzer.py`: Analyzes sensor data and generates alerts.
+## 🚀 One-Click Launch (Recommended)
 
-## Setup Instructions
+This project includes a fully automated orchestrator that sets up the environment, connects to the database, launches all components, and creates a persistent public tunnel.
 
-### 1. Database Setup
-Ensure you have MySQL/MariaDB installed and running.
-Run the setup script to initialize the database, user, and load initial data:
-```bash
-python setup_db.py
-```
-You will be prompted for your MySQL root password.
+1.  **Configure `.env`**:
+    Ensure the `.env` file in this directory has your correct Database credentials and Ngrok configuration.
+    ```ini
+    DB_HOST=127.0.0.1
+    DB_USER=root
+    DB_PASSWORD=your_password
+    NGROK_AUTH_TOKEN=your_token
+    NGROK_DOMAIN=your_domain.ngrok-free.app
+    ```
 
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-(Note: You may need to create a `requirements.txt` based on the imports: `flask`, `flask-socketio`, `eventlet`, `mysql-connector-python`, `geopy`, `folium` logic (if any used), etc.)
+2.  **Run the Orchestrator**:
+    ```bash
+    python run_mvp.py
+    ```
+    This will:
+    *   Install required Python packages automatically.
+    *   Download Ngrok (if missing).
+    *   Start the **Sensor Simulator** (generates data).
+    *   Start the **CWQI Analyzer** (processes data & alerts).
+    *   Start the **Dashboard** (visualizes specific node data).
+    *   Establish a **Persistent Public URL** via Ngrok.
 
-### 3. Run the System
-Open three terminal windows:
+## 📂 Project Architecture
 
-**Terminal 1: Dashboard**
-```bash
-python dashboard/app.py
-```
-Visit `http://localhost:5000` in your browser.
+*   **`dashboard/app.py`**: The Flask web server serving the UI. Listens on port 5000.
+*   **`sensor_simulator.py`**: Simulates IoT nodes (Pumping Stations, Zonal Tanks, Residential Colonies) and generates flow/quality data.
+*   **`cwqi_analyzer.py`**: Real-time analysis engine that computes Canadian Water Quality Index (CWQI) and generates alerts.
+*   **`run_mvp.py`**: Orchestration script to run everything together.
 
-**Terminal 2: Analyzer**
-```bash
-python cwqi_analyzer.py
-```
+## 🛠 Manual Setup (Developer)
 
-**Terminal 3: Simulator**
-```bash
-python sensor_simulator.py
-```
+If you prefer to run components individually:
 
-## Features
-- **Real-time Map**: Visualizes nodes (pumps/zones/colonies) on a Leaflet map.
-- **Mesh Network**: Interactive node graph.
-- **Alerts**: Real-time alerting for contamination (CWQI > 100) or other anomalies.
-- **Dark Mode**: Toggle available in the dashboard.
+1.  **Install Dependencies**:
+    ```bash
+    pip install flask flask-socketio mysql-connector-python pyvis geopy eventlet python-dotenv
+    ```
+
+2.  **Database Setup**:
+    Run `setup_db.py` to initialize the schema and users.
+
+3.  **Run Components**:
+    Open 3 separate terminals:
+    ```bash
+    # Terminal 1
+    python sensor_simulator.py
+
+    # Terminal 2
+    python cwqi_analyzer.py
+
+    # Terminal 3
+    python dashboard/app.py
+    ```
+
+## 🐛 Troubleshooting
+
+*   **MySQL Error 10060 (Timeout)**:
+    *   The scripts have built-in retry logic. If this persists, check if your MySQL server is running and accessible at `127.0.0.1`.
+*   **Ngrok Error**:
+    *   Ensure your `NGROK_AUTH_TOKEN` in `.env` is correct.
+    *   If the static domain fails, leave `NGROK_DOMAIN` empty in `.env` to get a random URL.
+
+## 🔐 Security Note
+
+*   This project uses a `.env` file to manage secrets. **Do not commit `.env` to public repositories.**
+*   The `.gitignore` is configured to exclude sensitive files.

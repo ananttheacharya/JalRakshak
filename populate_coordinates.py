@@ -3,13 +3,17 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 import time
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # MySQL CONFIG
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "jalrakshak",
-    "password": "jalrakshak123",
-    "database": "jalrakshak"
+    "host": os.getenv("DB_HOST", "127.0.0.1"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD", "5568"),
+    "database": os.getenv("DB_NAME", "jalrakshak")
 }
 
 # Fallback coordinates
