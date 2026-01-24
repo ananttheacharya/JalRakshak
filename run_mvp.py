@@ -40,6 +40,24 @@ def install_packages():
             print(f"[ERROR] Failed to install {package}: {e}")
 
 
+def kill_ngrok_process():
+    """Kills any existing ngrok.exe processes to prevent session conflicts."""
+    print(f"[ MVP ] Cleaning up old Ngrok sessions...")
+    if platform.system() == "Windows":
+        try:
+            subprocess.run(["taskkill", "/F", "/IM", "ngrok.exe"], 
+                         stdout=subprocess.DEVNULL, 
+                         stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+    else:
+        try:
+            subprocess.run(["pkill", "ngrok"], 
+                         stdout=subprocess.DEVNULL, 
+                         stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
 def download_ngrok():
     if not os.path.exists(NGROK_EXE):
         print(f"[ MVP ] Downloading {NGROK_EXE} from Ngrok...")
@@ -110,6 +128,7 @@ def run_all():
 
 
     # 2. Setup Ngrok
+    kill_ngrok_process()
     download_ngrok()
     configure_ngrok_auth()
 
