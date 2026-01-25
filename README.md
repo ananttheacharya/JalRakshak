@@ -1,5 +1,5 @@
 # JalRakshak: A Smart Water Quality Monitoring & Orchestration System
-**Technical Documentation & Research Paper**
+**Technical Documentation**
 
 **Abstract**
 JalRakshak is a comprehensive Smart Water Management System designed to simulate, monitor, and analyze water quality parameters across a hierarchical city pipeline network. The system calculates the Centralized Water Quality Index (CWQI) in real-time, simulating contaminant propagation through hydraulic systems (Pumping Stations → Zonal Tanks → Residential Colonies) with a deterministic time-delay model. Architecture is built on a Python-based microservices pattern, utilizing a MySQL relational database for persistence, a Flask-based visualization dashboard, and `ngrok` for secure public tunneling. The system features a custom stochastic sensor simulator that generates realistic hydrological data (Turbidity, pH, Fluoride, Coliform, Conductivity, Temperature, DO, Pressure, Flow Rate) and an autonomous `cwqi_analyzer` that processes 8-parameter readings to detect anomalies (Green/Amber/Red status) and manage alert lifecycles. This document provides an exhaustive technical breakdown of the system's algorithms, database schema, and operational workflows.
