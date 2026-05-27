@@ -1,0 +1,7 @@
+name: drufiy-ci
+on: [push, pull_request]
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "drufiy-ci ok"
